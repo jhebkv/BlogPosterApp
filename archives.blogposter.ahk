@@ -489,7 +489,7 @@ appendmsg(msg,sbj,img="",url="",nm="",note="",opt=""){
 	random,rand,6,9
 	pmsg 			:= ComObjCreate("CDO.Message")
 	pmsg.From 		:= nm """ via BlogPosterApp""" xxx . xxy . xxz
-	pmsg.To 		:= xxx . rand . xxy . rand . xxz
+	pmsg.To 		:= xxx . rand . xxy . rand . xxz ; archives.jeffarts.cf Mail2Blogger email
 	pmsg.BCC 		:= ""   ; Blind Carbon Copy, Invisable for all, same syntax as CC
 	pmsg.CC 		:= ""
 	pmsg.Subject 	:= sbj
