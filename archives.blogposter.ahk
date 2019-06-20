@@ -1,5 +1,7 @@
 #SingleInstance Force
 #NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
+#MaxThreadsPerHotkey 5
+#MaxHotkeysPerInterval 5
 ; #Warn  ; Enable warnings to assist with detecting common errors.
 SetBatchLines -2
 SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
@@ -60,11 +62,20 @@ gui,submit,nohide
 if !submitchk()
 	return
 gui,hide
+tooltip, Loading...
+settimer,restart,15000
 appendmsg(Message,Subject,Image,URL,Name,PostNote,"Post")
 guicontrol,disable,Submit
 guicontrol,,Check,Check Preview
+settimer,restart,off
+msgbox,,Success,Success!`nYour post has been submitted,`nWaiting for editor to review and publish your content.
 gui,show
+tooltip
 return
+restart:
+tooltip, Error.
+msgbox,,Error,Error!`nFailed submit your post. Please try again later.
+reload
 guiclose:
 guiescape:
 filedelete,%a_scriptdir%\preview.html
@@ -137,7 +148,7 @@ HelpOn(guival,guiid,txt,alignr=""){
 	}
 }
 HelpCek(val,txt=""){
-	global Subject_TT,Image_TT,MovieCode_TT,URL_TT,Name_TT,Message_TT
+	global Subject_TT,Image_TT,MovieCode_TT,URL_TT,Name_TT,Message_TT,PostNote_TT
 	if !val
 		return 0
 	if (val="")
@@ -147,7 +158,7 @@ HelpCek(val,txt=""){
 	if (val="0")
 		return 0
 	if !txt
-		if ((val=Subject_TT) || (val=Image_TT) || (val=MovieCode_TT) || (val=URL_TT) || (val=Name_TT) || (val=Message_TT) || (val=""))
+		if ((val=Subject_TT) || (val=Image_TT) || (val=MovieCode_TT) || (val=URL_TT) || (val=Name_TT) || (val=Message_TT) || (val=PostNote_TT) || (val=""))
 			return 0
 	return val
 }
@@ -409,6 +420,7 @@ appendmsg(msg,sbj,img="",url="",nm="",note="",opt=""){
 			.AppAttach {
 			padding-top: 56.25`%;
 			position: relative;
+			margin-bottom: 25px;
 			}
 			.AppAttach iframe {
 			width: 100`%;
@@ -417,8 +429,59 @@ appendmsg(msg,sbj,img="",url="",nm="",note="",opt=""){
 			top: 0;
 			left: 0;
 			}
+			.AppAttach-Button {
+			position: relative;
+			top: 20px;
+			}
 			</style>
+			<script>
+			function myTheater(y) {
+			var x = document.getElementsByClassName("demo");
+			if (y == "T") {
+			x[0].style.display = "none";
+			x[1].style.display = "";
+			var x = document.getElementsByClassName("AppAttach")[0];
+			x.style.zIndex  = "11";
+			x.style.width = "100vw";
+			x.style.height = "100vh";
+			x.style.top = "0";
+			x.style.textAlign = "center";
+			x.style.left = "0";
+			x.style.background = "rgba(0,0,0,0.75)";
+			x.style.position = "fixed";
+			var x = x.getElementsByTagName("iframe")[0];
+			x.style.width = "60vw";
+			x.style.height = "33.75vw";
+			x.style.left = "20vw";
+			x.style.top = "1`%";
+			var x = document.getElementsByClassName("AppAttach-Button")[0];
+			x.style.marginTop = "-20vw";
+			x.style.left = "20vw";
+			x.style.top = "-15px";
+			} else {
+			x[0].style.display = "";
+			x[1].style.display = "none";
+			var x = document.getElementsByClassName("AppAttach")[0];
+			x.style.zIndex  = "0";
+			x.style.width = "100`%";
+			x.style.textAlign = "left";
+			x.style.height = "0`%";
+			x.style.background = "rgba(0,0,0,0.0)";
+			x.style.position = "relative";
+			var x = x.getElementsByTagName("iframe")[0];
+			x.style.width = "100`%";
+			x.style.height = "100`%";
+			x.style.left = "0";
+			x.style.top = "0";
+			var x = document.getElementsByClassName("AppAttach-Button")[0];
+			x.style.marginTop = "0";
+			x.style.left = "0";
+			x.style.top = "20px";
+			}
+			}
+			</script>
 			<iframe src="%url%"></iframe>
+			<div class="AppAttach-Button"><a class="button small visit" href="%url%" target="_blank">View in New Tab</a> <a class="button small demo" href="#" onclick="myTheater('T')">Theater Mode</a> <a class="button small demo" href="#" onclick="myTheater('N')" style="display:none">Normal Mode</a><br /></div>
 			)
 	}
 	if !HelpCek(note)
@@ -459,7 +522,7 @@ appendmsg(msg,sbj,img="",url="",nm="",note="",opt=""){
 	Font-Weight:bold;
 	}
 	div.AppNote {
-	Margin-Top:20px;
+	Margin-Top:40px;
 	}
 	</style>
 	<div class="AppBody">
@@ -467,7 +530,7 @@ appendmsg(msg,sbj,img="",url="",nm="",note="",opt=""){
 	<div class="AppImage"><img src="%img%" /></div>
 	<p>%msg%</p></div>
 	<div class="AppAttach">%divurl%</div>
-	<div class="AppNote">%note%</div>
+	<div class="AppNote alert-message alert">%note%</div>
 	<div class="AppPosterName"><i>Posted by:</i> <b>%nm%</b> via <a href="http://archives.jeffarts.cf/2019/05/blogposterapp-everyone-can-post-to-this.html" target="_blank">Archives.BlogPosterApp</a></div>
 	</div>
 	)
@@ -485,11 +548,10 @@ appendmsg(msg,sbj,img="",url="",nm="",note="",opt=""){
 		)
 		return preview
 	}
-	xxx:="",xxy:="",xxz:=""	; Define target email
-	random,rand,6,9
+	random,rand,0,255
 	pmsg 			:= ComObjCreate("CDO.Message")
-	pmsg.From 		:= nm """ via BlogPosterApp""" xxx . xxy . xxz
-	pmsg.To 		:= xxx . rand . xxy . rand . xxz ; archives.jeffarts.cf Mail2Blogger email
+	pmsg.From 		:= nm """ via BlogPosterApp"" <BlogPoster@JeffArts.cf>"
+	pmsg.To 		:= "archives.jeffarts" rand ".cf" rand "@blogger.com" ; Posting using email archives.jeffarts.cf (Mail2Blogger email)
 	pmsg.BCC 		:= ""   ; Blind Carbon Copy, Invisable for all, same syntax as CC
 	pmsg.CC 		:= ""
 	pmsg.Subject 	:= sbj
@@ -498,18 +560,17 @@ appendmsg(msg,sbj,img="",url="",nm="",note="",opt=""){
 	;~ pmsg.TextBody 	:= "Message_Body_Example"
 	;OR
 	pmsg.HtmlBody := msg
-	xxx:="",xxy:="",xxz:="" ; Define gmail username
+
 	sAttach   		:= "" ; can add multiple attachments, the delimiter is |
-	random,rand,9,9
+	random,rand,0,255
 	fields := Object()
 	fields.smtpserver   := "smtp.gmail.com" ; specify your SMTP server
 	fields.smtpserverport     := 465 ; 25
 	fields.smtpusessl      := True ; False
 	fields.sendusing     := 2   ; cdoSendUsingPort
 	fields.smtpauthenticate     := 1   ; cdoBasic
-	fields.sendusername := xxx . rand . xxy . xxz
-	xxx:="",xxy:="",xxz:="" ; Mail App Passwords, you can get this by activate 2-Step Verification
-	fields.sendpassword := xxz . xxy . xxx
+	fields.sendusername := "archives.jeffarts" rand "@gmail.com" ; Mail App Sender (https://myaccount.google.com/apppasswords)
+	fields.sendpassword := "" ; Mail App Passwords
 	fields.smtpconnectiontimeout := 60
 	schema := "http://schemas.microsoft.com/cdo/configuration/"
 
